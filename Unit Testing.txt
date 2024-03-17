@@ -1,0 +1,353 @@
+
+public class GreetingImplTest {
+
+	GreetingImpl greetingImpl;
+	
+	@Before
+	public void setUp() {
+		System.out.println("setUp");
+		greetingImpl = new GreetingImpl(); 
+	}
+	@Test
+	public void greetShouldReturnValidOutput() {
+		System.out.println("greetShouldReturnValidOutput");
+		String result = greetingImpl.greeting("JUnit");
+		assertNotNull(result);
+		assertEquals("HelloJUnit", result);
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void greetShouldThrowAnException_For_Name_IsNull() {
+		System.out.println("greetShouldThrowAnException_For_Name_IsNull");
+		greetingImpl.greeting(null);
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void greetShouldThrowException_For_Name_IsBlank() {
+		System.out.println("greetShouldThrowException_For_Name_IsBlank");
+		greetingImpl.greeting("");
+	}
+}
+
+=================================================================================================
+
+@ExtendWith(MockitoExtension.class)
+public class GreetingImplTest {
+
+	@Mock
+	GreetingService service;
+	
+	@InjectMocks
+	GreetingImpl greetingImpl;
+	
+	
+	@Test
+	public void greetShouldReturnValidOutput() {
+		System.out.println("greetShouldReturnValidOutput");
+		when(service.greeting("JUnit")).thenReturn("Hello JUnit");
+		String result = greetingImpl.greeting("JUnit");
+		
+		Assertions.assertNotNull(result);
+		Assertions.assertEquals("Hello JUnit", result);
+	}
+	
+	@Test
+	public void greetShouldThrowAnException_For_Name_IsNull() {
+		System.out.println("greetShouldThrowAnException_For_Name_IsNull");
+		doThrow(IllegalArgumentException.class).when(service).greeting(null);
+		Assertions.assertThrows(IllegalArgumentException.class, ()->{
+			greetingImpl.greeting(null);
+		});
+	}
+	
+	@Test
+	public void greetShouldThrowException_For_Name_IsBlank() {
+		System.out.println("greetShouldThrowException_For_Name_IsBlank");
+		doThrow(IllegalArgumentException.class).when(service).greeting("");
+		Assertions.assertThrows(IllegalArgumentException.class, ()->{
+			greetingImpl.greeting("");
+		});
+	}
+}
+
+===================================================================================================
+
+
+
+@ExtendWith(MockitoExtension.class)
+public class OrderBOImplTest {
+
+	@Mock
+	OrderDAO dao;
+	
+	@InjectMocks
+	OrderBOImpl bo;
+	
+	
+	@Test
+	public void placeOrder_Should_Create_An_Order() throws SQLException, BOException {
+		Order order=new Order();
+		when(dao.createOrder(any(Order.class))).thenReturn(new Integer(1));
+		boolean result = bo.placeOrder(order);
+		Assertions.assertTrue(result); 
+		verify(dao).createOrder(order);
+	}
+	
+	@Test
+	public void placeOrder_Should_not_Create_An_Order() throws SQLException, BOException {
+		Order order=new Order();
+		when(dao.createOrder(order)).thenReturn(new Integer(0));
+		boolean result = bo.placeOrder(order);
+		Assertions.assertFalse(result); 
+		verify(dao).createOrder(order);
+	}
+	
+	@Test
+	public void placeOrder_Should_Throw_BOException() throws SQLException, BOException {
+		final Order order=new Order();
+		doThrow(SQLException.class).when(dao).createOrder(order);
+		Assertions.assertThrows(BOException.class, ()->{
+			bo.placeOrder(order);
+		});
+	}
+	
+	@Test
+	public void cancelOrder_Should_Canceled_the_Order() throws SQLException, BOException {
+		Order order=new Order();
+		when(dao.read(123)).thenReturn(order);
+		when(dao.update(order)).thenReturn(1);
+		boolean result = bo.cancelOrder(123); 
+		
+		Assertions.assertTrue(result);
+		verify(dao).read(123);
+		verify(dao).update(order);
+	}
+	
+	@Test
+	public void cancelOrder_Should_Not_Canceled_the_Order() throws SQLException, BOException {
+		Order order=new Order();
+		when(dao.read(123)).thenReturn(order);
+		when(dao.update(order)).thenReturn(0);
+		boolean result = bo.cancelOrder(123); 
+		
+		Assertions.assertFalse(result);
+		verify(dao).read(123);
+		verify(dao).update(order);
+	}	
+
+	@Test
+	public void cancelOrder_Should_Throw_An_Exception_OnRead() throws SQLException, BOException {
+		doThrow(SQLException.class).when(dao).read(anyInt());
+		Assertions.assertThrows(BOException.class, ()->{
+			bo.cancelOrder(anyInt());
+		});
+	}
+	
+	@Test
+	public void cancelOrder_Should_Throw_An_Exception_OnUpdate() throws SQLException, BOException {
+		Order order=new Order();
+		when(dao.read(anyInt())).thenReturn(order);
+		doThrow(SQLException.class).when(dao).update(order);
+		Assertions.assertThrows(BOException.class, ()->{
+			bo.cancelOrder(anyInt()); 
+		});
+	}	
+	
+	@Test 
+	public void deleteOrder_Should_Delete_the_Order() throws SQLException, BOException {
+		when(dao.delete(123)).thenReturn(1);
+		boolean result = bo.deleteOrder(123);
+		Assertions.assertTrue(result);
+	}
+	
+	@Test 
+	public void deleteOrder_Should_Not_Delete_the_Order() throws SQLException, BOException {
+		when(dao.delete(123)).thenReturn(0);
+		boolean result = bo.deleteOrder(123);
+		Assertions.assertFalse(result);
+	}
+}
+
+==================================================================================================
+
+@SpringBootTest
+class ProductserviceApplicationTests {
+
+	private static final String COUPON_SERVICE_URL = "http://localhost:9091/couponapi/coupons/";
+	private static final String COUPON_CODE = "SALE10"; 
+
+	@Mock
+	private ProductRepo repo;
+
+	@Mock
+	private RestTemplate restTemplate;
+
+	@InjectMocks
+	private ProductRestController productController;
+
+	@Test
+	void contextLoads() {
+
+		Product product = new Product(); 
+		product.setCouponCode(COUPON_CODE);
+		product.setName("Mobile");
+		product.setPrice(new BigDecimal(1100)); 
+		productController.setCouponServiceURL(COUPON_SERVICE_URL);
+		Coupon coupon = new Coupon();
+		coupon.setCode(COUPON_CODE);
+		coupon.setDiscount(new BigDecimal(10)); 
+		when(restTemplate.getForObject(COUPON_SERVICE_URL+COUPON_CODE, Coupon.class)).thenReturn(coupon);
+		when(repo.save(product)).thenReturn(product);
+		Product createProduct = productController.create(product); 
+		
+		verify(restTemplate).getForObject(COUPON_SERVICE_URL+COUPON_CODE, Coupon.class);
+		verify(repo).save(product);
+		
+		Assertions.assertNotNull(createProduct); 
+		Assertions.assertEquals(COUPON_CODE, createProduct.getCouponCode());
+		
+	}
+}
+
+--------------------------------------
+
+@SpringBootTest
+class CouponserviceApplicationTests {
+
+	private static final String FIRST2 = "FIRST2";
+
+	@Mock
+	CouponRepo couponRepo;
+
+	@InjectMocks
+	private CouponRestController restController;
+
+	@Test
+	public void createCouponsRestController() {
+		Coupon coupon = new Coupon();
+		coupon.setCode(FIRST2);
+		when(couponRepo.save(coupon)).thenReturn(coupon);
+		Coupon createCoupon = restController.create(coupon);
+		verify(couponRepo).save(coupon);
+		Assertions.assertNotNull(createCoupon);
+		Assertions.assertEquals(FIRST2, createCoupon.getCode());
+	}
+
+	@Test
+	public void getCouponTest() {
+		Coupon coupon = new Coupon();
+		coupon.setCode("FIRST2");
+		coupon.setDiscount(new BigDecimal(10));
+		coupon.setId(111L);
+		when(couponRepo.findByCode(FIRST2)).thenReturn(coupon);
+		Coupon getCouponResponse = restController.getCoupon(FIRST2);
+		verify(couponRepo).findByCode(FIRST2);
+		Assertions.assertNotNull(getCouponResponse);
+		Assertions.assertEquals(new BigDecimal(10), getCouponResponse.getDiscount());
+	}
+
+	@Test
+	public void createTest_When_Coupon_IS_NULL_Throws_Exception() {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			restController.create(null);
+		});
+	}
+}
+
+===================================================================================================
+
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+class SpringBootMockitoApplicationTests {
+	
+	@Autowired
+	private UserService service;
+	
+	@MockBean
+	private UserRepository repository;
+	
+	
+	@Test
+	public void getUserTest() {
+		when(repository.findAll()).thenReturn(Stream
+				.of(new User(376, "Danile", 31, "USA"), new User(958, "Huy", 35, "UK")).collect(Collectors.toList()));
+		
+		assertEquals(2, service.getUsers().size());
+	}
+	
+	@Test
+	public void getUserbyAddress() {
+		String address = "Bangalore";
+		when(repository.findByAddress(address)).thenReturn(Stream
+				.of(new User(376, "Danile", 31, "Bangalore")).collect(Collectors.toList()));
+		assertEquals(1, service.getUserbyAddress(address).size());
+	}
+	
+	@Test
+	public void saveUserTest() {
+		User user = new User(999, "Pranya" ,33, "Pune");
+		when(repository.save(user)).thenReturn(user);
+		assertEquals(user, service.addUser(user));
+	}
+
+	@Test
+	public void deleteUserTest() {
+		User user = new User(999, "Pranya" ,33, "Pune");
+		service.deleteUser(user); 
+		verify(repository,times(1)).delete(user);
+	}	
+}
+
+===================================================================================================================
+
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+class SpringMockitoExampleApplicationTests {
+	
+	@Autowired
+	private MockMvc mockMvc;
+	
+	@Autowired
+	private WebApplicationContext context;
+	
+	ObjectMapper mapper = new ObjectMapper();
+	
+	@Before
+	public void setUp() {
+		EmployeeController controller = new EmployeeController();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+		//mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+	}
+	
+	@Test
+	public void addEmployeeTest() throws Exception {
+		Employee employee = new Employee();
+		employee.setName("Kaushal");
+		employee.setDept("IT");
+		String jsonRequest = mapper.writeValueAsString(employee);
+		MvcResult result = mockMvc.perform(
+								post("/EmployeeService/addEmployee").content(jsonRequest).contentType(MediaType.APPLICATION_JSON_VALUE))
+								   .andExpect(status().isOk()).andReturn();
+		String resultContent = result.getResponse().getContentAsString();
+		Response response = mapper.readValue(resultContent, Response.class);
+		Assert.assertTrue(response.isStatus() == Boolean.TRUE);
+		
+	}
+	
+	@Test
+	public void getEmployeeTest() throws Exception {
+		
+		MvcResult result = mockMvc.perform(
+								get("/EmployeeService/getEmployees").contentType(MediaType.APPLICATION_JSON_VALUE))
+								   .andExpect(status().isOk()).andReturn();
+		String resultContent = result.getResponse().getContentAsString();
+		Response response = mapper.readValue(resultContent, Response.class);
+		Assert.assertTrue(response.isStatus() == Boolean.TRUE);
+		
+	}
+
+}
